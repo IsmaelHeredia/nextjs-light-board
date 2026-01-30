@@ -1,0 +1,11 @@
+services:
+  light-board:
+    build: .
+    container_name: light-board
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./uploads/images:/app/uploads/images
+    environment:
+      NODE_ENV: production
