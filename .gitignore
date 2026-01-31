@@ -43,6 +43,6 @@ next-env.d.ts
 /drizzle/meta
 /drizzle/*.sql
 
-uploads/**
+/uploads/*
 
-!uploads/.gitkeep
+!/uploads/.gitkeep
