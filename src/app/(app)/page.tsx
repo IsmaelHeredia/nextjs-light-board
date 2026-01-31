@@ -470,7 +470,7 @@ export default function KanbanPage() {
               sx={{ position: 'relative', textAlign: 'center' }}
             >
               <Typography variant="h6" fontWeight={700}>
-                Editar Tarjeta
+                Editar tarjeta
               </Typography>
 
               <IconButton

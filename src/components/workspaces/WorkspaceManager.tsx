@@ -362,7 +362,7 @@ export default function WorkspaceManager({
                                         }}
                                     >
                                         <AddIcon sx={{ fontSize: 48 }} />
-                                        <Typography fontWeight={700}>Crear Workspace</Typography>
+                                        <Typography fontWeight={700}>Crear espacio</Typography>
                                     </Paper>
                                 </Grid>
                             </Grid>
