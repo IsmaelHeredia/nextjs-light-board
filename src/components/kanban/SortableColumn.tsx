@@ -9,6 +9,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { useEffect, useState } from "react";
 
 function SortableColumn({
   id,
@@ -25,12 +26,21 @@ function SortableColumn({
       data: { type: "Column" },
     });
 
-  const saveTitle = async (newTitle: string) => {
-    await fetch("/api/columns", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, title: newTitle }),
-    });
+  const [localTitle, setLocalTitle] = useState(title);
+
+  useEffect(() => {
+    setLocalTitle(title);
+  }, [title]);
+
+  const saveTitle = async () => {
+    if (localTitle !== title) {
+      await fetch("/api/columns", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, title: localTitle }),
+      });
+      onTitleChange(localTitle);
+    }
   };
 
   const style = isOverlay
@@ -73,12 +83,13 @@ function SortableColumn({
           <InputBase
             multiline
             fullWidth
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            onBlur={(e) => saveTitle(e.target.value)}
+            value={localTitle}
+            onChange={(e) => setLocalTitle(e.target.value)}
+            onBlur={saveTitle}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
+                saveTitle();
                 (e.target as HTMLInputElement).blur();
               }
             }}
