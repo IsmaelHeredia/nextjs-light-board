@@ -114,7 +114,15 @@ export default function KanbanPage() {
   );
 
   useEffect(() => {
-    if (!activeWorkspaceId) return;
+
+    if (!activeWorkspaceId) {
+      setLoading(false);
+      setColumns([]);
+      setTasks([]);
+      setBoardTags([]);
+      return;
+    }
+
     setLoading(true);
     fetch(`/api/kanban/${activeWorkspaceId}`)
       .then(res => res.json())
