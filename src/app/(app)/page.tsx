@@ -11,8 +11,9 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 
-import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors, DragStartEvent, closestCorners } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { rectIntersection } from "@dnd-kit/core";
 
 import { setActiveWorkspace } from "@/store/reducers/workspaceSlice";
 import { useDispatch, useSelector } from "react-redux";
@@ -24,6 +25,8 @@ import SortableColumn from "@/components/kanban/SortableColumn";
 import SortableTask from "@/components/kanban/SortableTask";
 import TagPickerPopover from "@/components/kanban/TagPickerPopover";
 import { getContrastColor } from "@/app/lib/colors";
+
+import { DragOverlay } from "@dnd-kit/core";
 
 export default function KanbanPage() {
 
@@ -45,13 +48,33 @@ export default function KanbanPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [tagAnchor, setTagAnchor] = useState<HTMLButtonElement | null>(null);
 
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [activeDragType, setActiveDragType] = useState<"Column" | "Task" | null>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 10,
       },
     })
   );
+
+  const MemoColumn = React.memo(SortableColumn);
+  const MemoTask = React.memo(SortableTask);
+
+  const onDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveId(active.id as string);
+
+    const type = active.data.current?.type;
+    setActiveDragType(type);
+
+    if (type === "Task") {
+      const task = tasks.find(t => t.id === active.id);
+      if (task) setActiveTask(task);
+    }
+  };
 
   const updateBoardTag = (tag: Tag) => {
     setBoardTags(prev => {
@@ -89,12 +112,6 @@ export default function KanbanPage() {
   const activeWorkspaceId = useSelector(
     (state: RootState) => state.workspace.activeWorkspaceId
   );
-
-  useEffect(() => {
-    fetch("/api/workspaces")
-      .then(res => res.json())
-      .then(data => setWorkspaces(data));
-  }, []);
 
   useEffect(() => {
     if (!activeWorkspaceId) return;
@@ -166,6 +183,11 @@ export default function KanbanPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: newCols.map((c, i) => ({ id: c.id, order: i })) })
       });
+
+      setActiveId(null);
+      setActiveDragType(null);
+      setActiveTask(null);
+
       return;
     }
 
@@ -379,11 +401,16 @@ export default function KanbanPage() {
           </Typography>
         </Box>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={activeDragType === "Column" ? closestCorners : rectIntersection}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+        >
           <Box sx={{ flexGrow: 1, display: "flex", gap: 2, overflowX: "auto", pb: 2, alignItems: "flex-start" }}>
             <SortableContext items={columns.map(c => c.id)} strategy={horizontalListSortingStrategy}>
               {columns.map(col => (
-                <SortableColumn
+                <MemoColumn
                   key={col.id} id={col.id} title={col.title}
                   addTask={addTask}
                   onTitleChange={(val: string) => setColumns(prev => prev.map(c => c.id === col.id ? { ...c, title: val } : c))}
@@ -397,10 +424,15 @@ export default function KanbanPage() {
                 >
                   <SortableContext items={tasks.filter(t => t.columnId === col.id).map(t => t.id)} strategy={verticalListSortingStrategy}>
                     {tasks.filter(t => t.columnId === col.id).map(task => (
-                      <SortableTask key={task.id} id={task.id} task={task} onClick={() => setEditingTask({ ...task })} />
+                      <MemoTask
+                        key={task.id}
+                        id={task.id}
+                        task={task}
+                        onClick={() => setEditingTask({ ...task })}
+                      />
                     ))}
                   </SortableContext>
-                </SortableColumn>
+                </MemoColumn>
               ))}
             </SortableContext>
 
@@ -457,8 +489,29 @@ export default function KanbanPage() {
                 </Button>
               </Paper>
             </Tooltip>
-
           </Box>
+
+          <DragOverlay dropAnimation={null}>
+            {activeDragType === "Column" && activeId ? (
+              <SortableColumn
+                id={activeId}
+                title={columns.find((c) => c.id === activeId)?.title || ""}
+                addTask={() => { }}
+                onTitleChange={() => { }}
+                onDelete={() => { }}
+                isOverlay
+              >
+                {tasks
+                  .filter(t => t.columnId === activeId)
+                  .map(task => (
+                    <SortableTask key={task.id} id={task.id} task={task} isOverlay />
+                  ))}
+              </SortableColumn>
+            ) : activeTask ? (
+              <SortableTask id={activeTask.id} task={activeTask} isOverlay />
+            ) : null}
+          </DragOverlay>
+
         </DndContext>
       )}
 

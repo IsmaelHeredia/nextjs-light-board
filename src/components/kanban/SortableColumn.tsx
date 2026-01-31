@@ -17,6 +17,7 @@ function SortableColumn({
   onDelete,
   onTitleChange,
   addTask,
+  isOverlay = false,
 }: any) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } =
     useSortable({
@@ -32,18 +33,18 @@ function SortableColumn({
     });
   };
 
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    zIndex: isDragging ? 100 : 1,
-    opacity: isDragging ? 0.6 : 1,
-  };
+  const style = isOverlay
+    ? {}
+    : {
+      transform: CSS.Translate.toString(transform),
+      transition,
+      zIndex: isDragging ? 100 : 1,
+      opacity: isDragging ? 0.6 : 1,
+    };
 
   return (
     <Box ref={setNodeRef} style={style} sx={{ flexShrink: 0 }}>
       <Paper
-        {...attributes}
-        {...listeners}
         sx={{
           width: 280,
           display: "flex",
@@ -52,10 +53,13 @@ function SortableColumn({
           maxHeight: "calc(100vh - 120px)",
           borderRadius: 2,
           boxShadow: 2,
-          cursor: "grab",
+          cursor: isOverlay ? "default" : "grab",
+          touchAction: isOverlay ? "auto" : "none",
         }}
       >
         <Box
+          {...(!isOverlay ? attributes : {})}
+          {...(!isOverlay ? listeners : {})}
           sx={{
             display: "flex",
             alignItems: "flex-start",
@@ -63,6 +67,7 @@ function SortableColumn({
             gap: 0.5,
             width: "100%",
             boxSizing: "border-box",
+            cursor: isOverlay ? "default" : "grab",
           }}
         >
           <InputBase
@@ -85,9 +90,9 @@ function SortableColumn({
               "& .MuiInputBase-input": {
                 padding: "2px 4px",
                 lineHeight: 1.2,
-                whiteSpace: "normal",        
-                wordBreak: "break-all",      
-                overflowWrap: "anywhere",   
+                whiteSpace: "normal",
+                wordBreak: "break-all",
+                overflowWrap: "anywhere",
               },
             }}
           />
@@ -114,6 +119,7 @@ function SortableColumn({
             display: "flex",
             flexDirection: "column",
             gap: 1,
+            touchAction: "pan-y",
             scrollbarWidth: "thin",
             scrollbarColor: "#999 transparent",
             "&::-webkit-scrollbar": { width: 6 },

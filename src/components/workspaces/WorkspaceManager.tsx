@@ -201,6 +201,8 @@ export default function WorkspaceManager({
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
     );
 
+    const ALLOWED_TYPES = ["image/jpeg", "image/png"];
+
     const dispatch = useDispatch();
 
     useEffect(() => {
@@ -244,6 +246,11 @@ export default function WorkspaceManager({
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !localEdit) return;
+
+        if (!ALLOWED_TYPES.includes(file.type)) {
+            alert("Solo se permiten imágenes JPG o PNG");
+            return;
+        }
 
         setUploading(true);
         const formData = new FormData();
@@ -483,7 +490,12 @@ export default function WorkspaceManager({
                                 <Grid item xs={4}>
                                     <Button component="label" sx={{ height: 64, width: "100%", border: "1px dashed #ccc" }}>
                                         {uploading ? <CircularProgress size={24} /> : <AddIcon />}
-                                        <input type="file" hidden accept="image/*" onChange={handleFileUpload} />
+                                        <input
+                                            type="file"
+                                            hidden
+                                            accept="image/jpeg, image/png"
+                                            onChange={handleFileUpload}
+                                        />
                                     </Button>
                                 </Grid>
                             </Grid>

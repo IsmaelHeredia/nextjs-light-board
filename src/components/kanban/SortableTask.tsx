@@ -8,27 +8,28 @@ import { CSS } from "@dnd-kit/utilities";
 import { Tag } from "@/type";
 import { getContrastColor } from "@/app/lib/colors";
 
-function SortableTask({ id, task, onClick }: any) {
-    const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
-        id: id,
-        data: { type: 'Task', task }
-    });
+function SortableTask({ id, task, onClick, isOverlay = false }: any) {
+    const { setNodeRef, attributes, listeners, transform, transition, isDragging } =
+        useSortable({
+            id,
+            data: { type: "Task", task },
+        });
 
     const style = {
         transform: CSS.Translate.toString(transform),
         transition,
-        zIndex: isDragging ? 101 : 1,
-        opacity: isDragging ? 0.3 : 1,
-        marginBottom: '8px'
+        zIndex: isOverlay ? 1000 : isDragging ? 101 : 1,
+        opacity: isDragging && !isOverlay ? 0 : 1,
+        marginBottom: '8px',
     };
 
     return (
         <Box
-            ref={setNodeRef}
+            ref={isOverlay ? undefined : setNodeRef}
             style={style}
-            {...attributes}
-            {...listeners}
-            sx={{ width: '100%', minWidth: 0 }}
+            {...(!isOverlay ? attributes : {})}
+            {...(!isOverlay ? listeners : {})}
+            sx={{ width: "100%", minWidth: 0 }}
         >
             <Card
                 onClick={onClick}
