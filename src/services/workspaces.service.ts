@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { workspaces, galleryImages } from "@/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, asc, sql } from "drizzle-orm";
 import crypto from "crypto";
 
 import fs from "fs/promises";
@@ -15,10 +15,32 @@ export const workspacesService = {
         createdAt: workspaces.createdAt,
         imageId: workspaces.imageId,
         image: galleryImages.url,
+        order: workspaces.order,
+        archived: workspaces.archived,
+        archivedAt: workspaces.archivedAt,
       })
       .from(workspaces)
       .leftJoin(galleryImages, eq(workspaces.imageId, galleryImages.id))
-      .orderBy(workspaces.order);
+      .where(eq(workspaces.archived, false))
+      .orderBy(asc(workspaces.order));
+  },
+
+  async getArchived() {
+    return db
+      .select({
+        id: workspaces.id,
+        title: workspaces.title,
+        createdAt: workspaces.createdAt,
+        imageId: workspaces.imageId,
+        image: galleryImages.url,
+        order: workspaces.order,
+        archived: workspaces.archived,
+        archivedAt: workspaces.archivedAt,
+      })
+      .from(workspaces)
+      .leftJoin(galleryImages, eq(workspaces.imageId, galleryImages.id))
+      .where(eq(workspaces.archived, true))
+      .orderBy(desc(workspaces.archivedAt));
   },
 
   async getById(id: string) {
@@ -32,7 +54,8 @@ export const workspacesService = {
   async create(title: string, image?: string) {
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)` })
-      .from(workspaces);
+      .from(workspaces)
+      .where(eq(workspaces.archived, false));
 
     const newWs = {
       id: `ws-${crypto.randomUUID()}`,
@@ -40,6 +63,8 @@ export const workspacesService = {
       imageId: null,
       order: count,
       createdAt: new Date(),
+      archived: false,
+      archivedAt: null,
     };
 
     await db.insert(workspaces).values(newWs);
@@ -61,6 +86,72 @@ export const workspacesService = {
         title: workspaces.title,
         imageId: workspaces.imageId,
         image: galleryImages.url,
+        order: workspaces.order,
+        archived: workspaces.archived,
+        archivedAt: workspaces.archivedAt,
+      })
+      .from(workspaces)
+      .leftJoin(galleryImages, eq(workspaces.imageId, galleryImages.id))
+      .where(eq(workspaces.id, id));
+
+    return updated;
+  },
+
+  async setArchived(id: string, archived: boolean) {
+    if (archived) {
+      await db
+        .update(workspaces)
+        .set({ archived: true, archivedAt: new Date() })
+        .where(eq(workspaces.id, id));
+    } else {
+      const [target] = await db
+        .select()
+        .from(workspaces)
+        .where(eq(workspaces.id, id));
+
+      if (!target) return undefined;
+
+      const activeList = await db
+        .select({ id: workspaces.id, order: workspaces.order })
+        .from(workspaces)
+        .where(eq(workspaces.archived, false))
+        .orderBy(asc(workspaces.order));
+
+      const savedOrder = target.order ?? activeList.length;
+      const insertIndex = Math.max(0, Math.min(savedOrder, activeList.length));
+
+      const reordered = [
+        ...activeList.slice(0, insertIndex),
+        { id: target.id, order: -1 },
+        ...activeList.slice(insertIndex),
+      ];
+
+      db.transaction((tx) => {
+        reordered.forEach((item, idx) => {
+          if (item.id === target.id) {
+            tx.update(workspaces)
+              .set({ archived: false, archivedAt: null, order: idx })
+              .where(eq(workspaces.id, item.id))
+              .run();
+          } else {
+            tx.update(workspaces)
+              .set({ order: idx })
+              .where(eq(workspaces.id, item.id))
+              .run();
+          }
+        });
+      });
+    }
+
+    const [updated] = await db
+      .select({
+        id: workspaces.id,
+        title: workspaces.title,
+        imageId: workspaces.imageId,
+        image: galleryImages.url,
+        order: workspaces.order,
+        archived: workspaces.archived,
+        archivedAt: workspaces.archivedAt,
       })
       .from(workspaces)
       .leftJoin(galleryImages, eq(workspaces.imageId, galleryImages.id))

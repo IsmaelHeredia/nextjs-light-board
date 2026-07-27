@@ -21,6 +21,8 @@ import {
     Toolbar,
     CircularProgress,
     Tooltip,
+    Tabs,
+    Tab,
 } from "@mui/material";
 
 import AddIcon from "@mui/icons-material/Add";
@@ -28,6 +30,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
+import ArchiveIcon from "@mui/icons-material/Archive";
+import UnarchiveIcon from "@mui/icons-material/Unarchive";
+import LockIcon from "@mui/icons-material/Lock";
 
 import { ConfirmDialog } from "../modals/ConfirmDialog";
 import { useDispatch, useSelector } from "react-redux";
@@ -56,14 +61,22 @@ function SortableWorkspaceCard({
     onSelect,
     onEdit,
     onDelete,
+    onArchive,
+    onReopen,
+    draggable = true,
+    reopening = false,
 }: {
     ws: Workspace;
     onSelect: () => void;
     onEdit: () => void;
     onDelete: () => void;
+    onArchive: () => void;
+    onReopen: () => void;
+    draggable?: boolean;
+    reopening?: boolean;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-        useSortable({ id: ws.id });
+        useSortable({ id: ws.id, disabled: !draggable });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -72,28 +85,41 @@ function SortableWorkspaceCard({
         opacity: isDragging ? 0.6 : 1,
     };
 
+    const isArchived = !!ws.archived;
+
     return (
         <Grid item xs={12} sm={6} md={4} lg={3} ref={setNodeRef} style={style}>
             <Card
                 sx={{
                     borderRadius: 3,
-                    cursor: "grab",
+                    cursor: draggable ? "grab" : "default",
                     transition: "0.3s",
+                    position: "relative",
+                    overflow: "hidden",
                     "&:hover": {
                         boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-                        transform: "translateY(-4px)",
+                        transform: isArchived ? "none" : "translateY(-4px)",
                     },
-                    "&:active": { cursor: "grabbing" },
+                    "&:active": { cursor: draggable ? "grabbing" : "default" },
                 }}
             >
-                <Box {...attributes} {...listeners} onClick={onSelect} sx={{ cursor: "pointer" }}>
+                <Box
+                    {...(draggable ? attributes : {})}
+                    {...(draggable ? listeners : {})}
+                    onClick={!isArchived ? onSelect : undefined}
+                    sx={{ cursor: isArchived ? "default" : "pointer" }}
+                >
                     {ws.image ? (
                         <CardMedia
                             component="img"
                             height="140"
                             image={ws.image}
                             alt={ws.title}
-                            sx={{ objectFit: "cover" }}
+                            sx={{
+                                objectFit: "cover",
+                                filter: isArchived ? "grayscale(85%) brightness(0.65)" : "none",
+                                transition: "filter 0.4s ease",
+                            }}
                         />
                     ) : (
                         <Box
@@ -104,7 +130,9 @@ function SortableWorkspaceCard({
                                 justifyContent: "center",
                                 flexDirection: "column",
                                 color: "text.secondary",
-                                bgcolor: "action.hover"
+                                bgcolor: "action.hover",
+                                filter: isArchived ? "grayscale(85%) brightness(0.65)" : "none",
+                                transition: "filter 0.4s ease",
                             }}
                         >
                             <BusinessCenterIcon sx={{ fontSize: 40, opacity: 0.4 }} />
@@ -114,6 +142,60 @@ function SortableWorkspaceCard({
                         </Box>
                     )}
                 </Box>
+
+                {isArchived && (
+                    <Box
+                        sx={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 140,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 1,
+                            backdropFilter: "blur(3px)",
+                            background: "rgba(0,0,0,0.35)",
+                            color: "#fff",
+                        }}
+                    >
+                        <LockIcon sx={{ fontSize: 30 }} />
+                        <Typography fontWeight={800} sx={{ letterSpacing: 1.2, fontSize: "0.75rem" }}>
+                            ARCHIVADO
+                        </Typography>
+                        <Button
+                            size="small"
+                            variant="contained"
+                            disabled={reopening}
+                            startIcon={
+                                reopening
+                                    ? <CircularProgress size={14} thickness={5} sx={{ color: "#111" }} />
+                                    : <UnarchiveIcon fontSize="small" />
+                            }
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onReopen();
+                            }}
+                            sx={{
+                                borderRadius: 5,
+                                textTransform: "none",
+                                fontWeight: 700,
+                                bgcolor: "#fff",
+                                color: "#111",
+                                "&:hover": { bgcolor: "#eee" },
+                                "&.Mui-disabled": {
+                                    bgcolor: "#eee",
+                                    color: "#111",
+                                    opacity: 0.8,
+                                },
+                            }}
+                        >
+                            {reopening ? "Reabriendo..." : "Reabrir"}
+                        </Button>
+                    </Box>
+                )}
 
                 <CardContent
                     sx={{
@@ -132,12 +214,12 @@ function SortableWorkspaceCard({
                         <Typography
                             fontWeight={800}
                             sx={{
-                                maxWidth: "70%",
+                                maxWidth: "60%",
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 fontSize: "1rem",
-                                cursor: "default"
+                                cursor: "default",
                             }}
                         >
                             {ws.title}
@@ -145,18 +227,32 @@ function SortableWorkspaceCard({
                     </Tooltip>
 
                     <Stack direction="row" spacing={0.5}>
-                        <IconButton
-                            size="small"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onEdit();
-                            }}
-                        >
-                            <EditIcon fontSize="inherit" />
-                        </IconButton>
+                        {!isArchived ? (
+                            <>
+                                <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onEdit();
+                                    }}
+                                >
+                                    <EditIcon fontSize="inherit" />
+                                </IconButton>
+                                <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onArchive();
+                                    }}
+                                >
+                                    <ArchiveIcon fontSize="inherit" />
+                                </IconButton>
+                            </>
+                        ) : null}
                         <IconButton
                             size="small"
                             color="error"
+                            disabled={reopening}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onDelete();
@@ -190,10 +286,16 @@ export default function WorkspaceManager({
 }) {
     const theme = useSelector(selectTheme);
 
+    const [tab, setTab] = useState<"active" | "archived">("active");
+    const [archivedWorkspaces, setArchivedWorkspaces] = useState<Workspace[]>([]);
+    const [loadingArchived, setLoadingArchived] = useState(false);
+    const [reopeningId, setReopeningId] = useState<string | null>(null);
+
     const [localEdit, setLocalEdit] = useState<Workspace | null>(null);
     const [gallery, setGallery] = useState<GalleryImage[]>([]);
     const [uploading, setUploading] = useState(false);
     const [workspaceToDelete, setWorkspaceToDelete] = useState<Workspace | null>(null);
+    const [workspaceToArchive, setWorkspaceToArchive] = useState<Workspace | null>(null);
 
     const [imgToDelete, setImgToDelete] = useState<GalleryImage | null>(null);
 
@@ -213,6 +315,17 @@ export default function WorkspaceManager({
                 .catch((err) => console.error("Error cargando galería:", err));
         }
     }, [open]);
+
+    useEffect(() => {
+        if (open && tab === "archived") {
+            setLoadingArchived(true);
+            fetch("/api/workspaces/archived")
+                .then((res) => res.json())
+                .then(setArchivedWorkspaces)
+                .catch((err) => console.error("Error cargando archivados:", err))
+                .finally(() => setLoadingArchived(false));
+        }
+    }, [open, tab]);
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
@@ -296,6 +409,57 @@ export default function WorkspaceManager({
         }
     };
 
+    const confirmArchiveWorkspace = async () => {
+        if (!workspaceToArchive) return;
+
+        try {
+            const res = await fetch(`/api/workspaces/${workspaceToArchive.id}/archive`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ archived: true }),
+            });
+
+            if (res.ok) {
+                setWorkspaces(prev => prev.filter(w => w.id !== workspaceToArchive.id));
+                dispatch(removeActiveWorkspace(workspaceToArchive.id));
+            }
+        } catch (err) {
+            console.error("Error archivando workspace:", err);
+        } finally {
+            setWorkspaceToArchive(null);
+        }
+    };
+
+    const handleReopen = async (ws: Workspace) => {
+        setReopeningId(ws.id);
+        try {
+            const res = await fetch(`/api/workspaces/${ws.id}/archive`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ archived: false }),
+            });
+
+            if (!res.ok) return;
+
+            setArchivedWorkspaces(prev => prev.filter(w => w.id !== ws.id));
+
+            const activeRes = await fetch("/api/workspaces");
+            if (activeRes.ok) {
+                const freshActive = await activeRes.json();
+                setWorkspaces(freshActive);
+            }
+        } catch (err) {
+            console.error("Error reabriendo workspace:", err);
+        } finally {
+            setReopeningId(null);
+        }
+    };
+
+    const handleDeleteArchived = async (ws: Workspace) => {
+        await fetch(`/api/workspaces/${ws.id}`, { method: "DELETE" });
+        setArchivedWorkspaces(prev => prev.filter(w => w.id !== ws.id));
+    };
+
     return (
         <>
             <Dialog fullScreen open={open} onClose={onClose}>
@@ -309,6 +473,19 @@ export default function WorkspaceManager({
                             <CloseIcon />
                         </IconButton>
                     </Toolbar>
+
+                    <Tabs
+                        value={tab}
+                        onChange={(_, val) => setTab(val)}
+                        sx={{
+                            backgroundColor: theme.palette.customNavbar?.background,
+                            px: { xs: 2, md: 6 },
+                        }}
+                        textColor="inherit"
+                    >
+                        <Tab value="active" label="Activos" sx={{ fontWeight: 700, textTransform: "none" }} />
+                        <Tab value="archived" label="Archivados" sx={{ fontWeight: 700, textTransform: "none" }} />
+                    </Tabs>
                 </AppBar>
 
                 <Box
@@ -316,10 +493,10 @@ export default function WorkspaceManager({
                         pt: { xs: 2, md: 3 },
                         px: { xs: 2, md: 6 },
                         pb: { xs: 2, md: 6 },
-                        minHeight: "calc(100vh - 64px)",
+                        minHeight: "calc(100vh - 112px)",
                         backgroundColor: theme.palette.background.default,
                         overflowY: "auto",
-                        height: "calc(100vh - 64px)",
+                        height: "calc(100vh - 112px)",
                         "&::-webkit-scrollbar": { width: "8px" },
                         "&::-webkit-scrollbar-thumb": {
                             backgroundColor: "#ccc",
@@ -327,54 +504,94 @@ export default function WorkspaceManager({
                         }
                     }}
                 >
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                        <SortableContext items={workspaces.map((w) => w.id)} strategy={rectSortingStrategy}>
-                            <Grid container spacing={4}>
-                                {workspaces.map((ws) => (
-                                    <SortableWorkspaceCard
-                                        key={ws.id}
-                                        ws={ws}
-                                        onSelect={() => onSelectWorkspace(ws.id)}
-                                        onEdit={() => setLocalEdit({ ...ws })}
-                                        onDelete={() => setWorkspaceToDelete(ws)}
-                                    />
-                                ))}
+                    {tab === "active" ? (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={workspaces.map((w) => w.id)} strategy={rectSortingStrategy}>
+                                <Grid container spacing={4}>
+                                    {workspaces.map((ws) => (
+                                        <SortableWorkspaceCard
+                                            key={ws.id}
+                                            ws={ws}
+                                            draggable
+                                            onSelect={() => onSelectWorkspace(ws.id)}
+                                            onEdit={() => setLocalEdit({ ...ws })}
+                                            onDelete={() => setWorkspaceToDelete(ws)}
+                                            onArchive={() => setWorkspaceToArchive(ws)}
+                                            onReopen={() => {}}
+                                        />
+                                    ))}
 
-                                <Grid item xs={12} sm={6} md={4} lg={3}>
-                                    <Paper
-                                        onClick={async () => {
-                                            const res = await fetch("/api/workspaces", {
-                                                method: "POST",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({
-                                                    title: "Nuevo Espacio",
-                                                    image: "/images/default-bg.jpg",
-                                                }),
-                                            });
-                                            const newWs = await res.json();
-                                            setWorkspaces((prev) => [...prev, newWs]);
-                                        }}
-                                        sx={{
-                                            minHeight: 205,
-                                            height: "100%",
-                                            display: "flex",
-                                            flexDirection: "column",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            cursor: "pointer",
-                                            borderRadius: 3,
-                                            border: "2px dashed #b0b8c4",
-                                            transition: "0.3s",
-                                            "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" }
-                                        }}
-                                    >
-                                        <AddIcon sx={{ fontSize: 48 }} />
-                                        <Typography fontWeight={700}>Crear espacio</Typography>
-                                    </Paper>
+                                    <Grid item xs={12} sm={6} md={4} lg={3}>
+                                        <Paper
+                                            onClick={async () => {
+                                                const res = await fetch("/api/workspaces", {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({
+                                                        title: "Nuevo Espacio",
+                                                        image: "/images/default-bg.jpg",
+                                                    }),
+                                                });
+                                                const newWs = await res.json();
+                                                setWorkspaces((prev) => [...prev, newWs]);
+                                            }}
+                                            sx={{
+                                                minHeight: 205,
+                                                height: "100%",
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                cursor: "pointer",
+                                                borderRadius: 3,
+                                                border: "2px dashed #b0b8c4",
+                                                transition: "0.3s",
+                                                "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" }
+                                            }}
+                                        >
+                                            <AddIcon sx={{ fontSize: 48 }} />
+                                            <Typography fontWeight={700}>Crear espacio</Typography>
+                                        </Paper>
+                                    </Grid>
                                 </Grid>
-                            </Grid>
-                        </SortableContext>
-                    </DndContext>
+                            </SortableContext>
+                        </DndContext>
+                    ) : loadingArchived ? (
+                        <Box sx={{ display: "flex", justifyContent: "center", pt: 8 }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : archivedWorkspaces.length === 0 ? (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                pt: 8,
+                                gap: 1,
+                                color: "text.secondary",
+                            }}
+                        >
+                            <ArchiveIcon sx={{ fontSize: 48, opacity: 0.4 }} />
+                            <Typography fontWeight={700}>No hay espacios archivados</Typography>
+                        </Box>
+                    ) : (
+                        <Grid container spacing={4}>
+                            {archivedWorkspaces.map((ws) => (
+                                <SortableWorkspaceCard
+                                    key={ws.id}
+                                    ws={ws}
+                                    draggable={false}
+                                    reopening={reopeningId === ws.id}
+                                    onSelect={() => {}}
+                                    onEdit={() => {}}
+                                    onArchive={() => {}}
+                                    onDelete={() => handleDeleteArchived(ws)}
+                                    onReopen={() => handleReopen(ws)}
+                                />
+                            ))}
+                        </Grid>
+                    )}
                 </Box>
 
                 <Dialog open={!!localEdit} onClose={() => setLocalEdit(null)} maxWidth="sm" fullWidth>
@@ -506,8 +723,10 @@ export default function WorkspaceManager({
                         <Button
                             variant="outlined"
                             color="primary"
+                            disabled={!localEdit?.title.trim()}
                             onClick={() => {
-                                if (localEdit) onUpdate(localEdit);
+                                if (!localEdit?.title.trim()) return;
+                                onUpdate(localEdit);
                                 setLocalEdit(null);
                             }}
                         >
@@ -532,6 +751,14 @@ export default function WorkspaceManager({
                     setWorkspaceToDelete(null);
                 }}
                 onClose={() => setWorkspaceToDelete(null)}
+            />
+
+            <ConfirmDialog
+                open={!!workspaceToArchive}
+                title={`¿Archivar el workspace "${workspaceToArchive?.title}"?`}
+                description="Podrás reabrirlo en cualquier momento desde la pestaña Archivados."
+                onConfirm={confirmArchiveWorkspace}
+                onClose={() => setWorkspaceToArchive(null)}
             />
 
             <ConfirmDialog

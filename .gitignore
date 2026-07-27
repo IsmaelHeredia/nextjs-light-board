@@ -37,11 +37,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# database
 /data/*.sqlite
+/data/*.sqlite-*
 /data/*.db
-
-/drizzle/meta
-/drizzle/*.sql
+/data/*.backup
+/data/*.pre-migrate*
+/data/*.broken
 
 uploads/**
 

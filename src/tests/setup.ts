@@ -18,6 +18,8 @@ beforeAll(async () => {
       image_id TEXT,
       "order" INTEGER NOT NULL,
       created_at INTEGER,
+      archived INTEGER NOT NULL DEFAULT 0,
+      archived_at INTEGER,
       FOREIGN KEY (image_id)
         REFERENCES gallery_images(id)
         ON DELETE SET NULL

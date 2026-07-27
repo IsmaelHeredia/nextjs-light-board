@@ -20,13 +20,15 @@ import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog";
 import { boardPatterns } from "@/skins/theme";
-import { Column, Tag, Task, Workspace } from "@/type";
+import { Column, Tag, Task, TaskFormValues, Workspace } from "@/type";
 import SortableColumn from "@/components/kanban/SortableColumn";
 import SortableTask from "@/components/kanban/SortableTask";
 import TagPickerPopover from "@/components/kanban/TagPickerPopover";
 import { getContrastColor } from "@/app/lib/colors";
 
 import { DragOverlay } from "@dnd-kit/core";
+
+import { useForm, Controller } from "react-hook-form";
 
 export default function KanbanPage() {
 
@@ -104,8 +106,48 @@ export default function KanbanPage() {
   };
 
   const removeTag = (id: string) => {
-    setBoardTags((prevTags) => prevTags.filter(t => t.id !== id));
+
+    setBoardTags(prev => prev.filter(t => t.id !== id));
+
+    setTasks(prev =>
+      prev.map(task => ({
+        ...task,
+        tags: task.tags?.filter(t => t.id !== id) || []
+      }))
+    );
+
+    setEditingTask(prev =>
+      prev
+        ? {
+          ...prev,
+          tags: prev.tags?.filter(t => t.id !== id) || []
+        }
+        : null
+    );
   };
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { isValid }
+  } = useForm({
+    mode: "onChange",
+    defaultValues: {
+      title: editingTask?.title || "",
+      description: editingTask?.description || "",
+    }
+  });
+
+  useEffect(() => {
+    if (!editingTask) return;
+
+    reset({
+      title: editingTask.title,
+      description: editingTask.description || ""
+    });
+
+  }, [editingTask?.id]);
 
   const dispatch = useDispatch();
 
@@ -114,60 +156,45 @@ export default function KanbanPage() {
   );
 
   useEffect(() => {
-
     if (!activeWorkspaceId) {
-      setLoading(false);
       setColumns([]);
       setTasks([]);
       setBoardTags([]);
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    fetch(`/api/kanban/${activeWorkspaceId}`)
-      .then(res => res.json())
-      .then(data => {
+    const fetchBoard = async () => {
+      try {
+        setLoading(true);
+
+        const res = await fetch(`/api/kanban/${activeWorkspaceId}`);
+        const data = await res.json();
+
         setColumns(data.columns || []);
 
         const uniqueTasksMap = new Map<string, Task>();
-        for (const task of data.tasks || []) {
+        (data.tasks || []).forEach((task: Task) => {
           uniqueTasksMap.set(task.id, task);
-        }
-
+        });
         setTasks(Array.from(uniqueTasksMap.values()));
 
-        setBoardTags((prev) => {
-          const map = new Map<string, Tag>();
-          [...prev, ...(data.tags || [])].forEach(t => map.set(t.id, t));
-          return Array.from(map.values());
-        });
+        setBoardTags(data.tags || []);
 
+      } catch (error) {
+        console.error("Error cargando kanban:", error);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchBoard();
+
   }, [activeWorkspaceId]);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (!activeWorkspaceId) return;
-    setLoading(true);
-    fetch(`/api/kanban/${activeWorkspaceId}`)
-      .then(res => res.json())
-      .then(data => {
-        setColumns(data.columns || []);
-
-        const uniqueTasksMap = new Map<string, Task>();
-        for (const task of data.tasks || []) {
-          uniqueTasksMap.set(task.id, task);
-        }
-
-        setTasks(Array.from(uniqueTasksMap.values()));
-        setBoardTags(data.tags || []);
-        setLoading(false);
-      });
-  }, [activeWorkspaceId]);
 
   const onDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -272,23 +299,45 @@ export default function KanbanPage() {
     ]);
   };
 
-  const handleSaveTaskChanges = async () => {
+  const handleSaveTaskChanges = async (data: TaskFormValues) => {
+
     if (!editingTask) return;
 
-    setTasks(prev => prev.map(t => t.id === editingTask.id ? editingTask : t));
+    const updatedTask: Task = {
+      ...editingTask,
+      title: data.title,
+      description: data.description,
+    };
 
-    await fetch("/api/tasks", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: editingTask.id,
-        title: editingTask.title,
-        description: editingTask.description,
-        tags: editingTask.tags
-      })
-    });
+    setTasks(prev =>
+      prev.map(t => t.id === editingTask.id ? updatedTask : t)
+    );
 
-    setEditingTask(null);
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingTask.id,
+          title: data.title,
+          description: data.description,
+          tags: editingTask.tags
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error("Error al guardar");
+      }
+
+      setEditingTask(null);
+
+    } catch (error) {
+      console.error(error);
+
+      setTasks(prev =>
+        prev.map(t => t.id === editingTask.id ? editingTask : t)
+      );
+    }
   };
 
   if (!mounted) return null;
@@ -549,16 +598,35 @@ export default function KanbanPage() {
 
             <DialogContent dividers>
               <Stack spacing={3} sx={{ mt: 1 }}>
-                <TextField
-                  fullWidth label="Título"
-                  value={editingTask.title}
-                  onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
+
+                <Controller
+                  name="title"
+                  control={control}
+                  rules={{
+                    required: true,
+                    validate: value => value.trim().length > 0
+                  }}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      label="Título"
+                    />
+                  )}
                 />
 
-                <TextField
-                  fullWidth multiline rows={4} label="Descripción"
-                  value={editingTask.description || ""}
-                  onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })}
+                <Controller
+                  name="description"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      multiline
+                      rows={4}
+                      label="Descripción"
+                    />
+                  )}
                 />
 
                 <Box>
@@ -617,8 +685,21 @@ export default function KanbanPage() {
                 Eliminar
               </Button>
               <Box sx={{ flexGrow: 1 }} />
-              <Button color="secondary" variant="outlined" onClick={() => setEditingTask(null)}>Cancelar</Button>
-              <Button color="primary" variant="outlined" onClick={handleSaveTaskChanges}>Guardar</Button>
+              <Button
+                color="secondary"
+                variant="outlined"
+                onClick={() => setEditingTask(null)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                color="primary"
+                variant="outlined"
+                onClick={handleSubmit(handleSaveTaskChanges)}
+                disabled={!isValid}
+              >
+                Guardar
+              </Button>
             </DialogActions>
 
             <TagPickerPopover

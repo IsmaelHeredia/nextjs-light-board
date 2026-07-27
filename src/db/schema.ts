@@ -11,6 +11,8 @@ export const workspaces = sqliteTable("workspaces", {
   imageId: text("image_id").references(() => galleryImages.id, { onDelete: "set null" }),
   order: integer("order").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).default(new Date()),
+  archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+  archivedAt: integer("archived_at", { mode: "timestamp" }),
 });
 
 export const columns = sqliteTable("columns", {

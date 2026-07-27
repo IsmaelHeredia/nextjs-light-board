@@ -61,9 +61,16 @@ type Workspace = {
   title: string;
   image?: string;
   imageId?: string;
+  archived?: boolean;
+  archivedAt?: string | number | Date | null;
 };
 
 type GalleryImage = {
   id: string;
   url: string;
+};
+
+type TaskFormValues = {
+  title: string;
+  description: string;
 };
