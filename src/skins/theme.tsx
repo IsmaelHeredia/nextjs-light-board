@@ -29,6 +29,7 @@ export const getTheme = (mode: ThemeMode) => {
     gray: '#a89984',
     orange: '#d79921',
     lightGreen: '#a9b665',
+    accentButton: '#ebcf8d',
   };
 
   const gruvboxLight = {
@@ -44,6 +45,7 @@ export const getTheme = (mode: ThemeMode) => {
     gray: '#a89984',
     orange: '#d79921',
     lightGreen: '#b8bb26',
+    accentButton: '#ebdbb2',
   };
 
   const currentColors = isDark ? gruvboxDark : gruvboxLight;
@@ -100,8 +102,8 @@ export const getTheme = (mode: ThemeMode) => {
       },
       divider: currentColors.gray,
       customButton: {
-        colorBackground: currentColors.bgPaper,
-        colorText: currentColors.text
+        colorBackground: currentColors.accentButton,
+        colorText: isDark ? currentColors.bg : currentColors.text,
       },
       customNavbar: {
         background: currentColors.bgPaper,

@@ -32,7 +32,6 @@ import EditIcon from "@mui/icons-material/Edit";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
 import ArchiveIcon from "@mui/icons-material/Archive";
 import UnarchiveIcon from "@mui/icons-material/Unarchive";
-import LockIcon from "@mui/icons-material/Lock";
 
 import { ConfirmDialog } from "../modals/ConfirmDialog";
 import { useDispatch, useSelector } from "react-redux";
@@ -56,6 +55,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { GalleryImage, Workspace } from "@/type";
 import { removeActiveWorkspace } from "@/store/reducers/workspaceSlice";
 
+import { useTheme } from "@mui/material";
+
 function SortableWorkspaceCard({
     ws,
     onSelect,
@@ -75,6 +76,9 @@ function SortableWorkspaceCard({
     draggable?: boolean;
     reopening?: boolean;
 }) {
+
+    const theme = useTheme();
+
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
         useSortable({ id: ws.id, disabled: !draggable });
 
@@ -151,50 +155,15 @@ function SortableWorkspaceCard({
                             left: 0,
                             right: 0,
                             height: 140,
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 1,
-                            backdropFilter: "blur(3px)",
-                            background: "rgba(0,0,0,0.35)",
-                            color: "#fff",
+                            backdropFilter: "blur(4px)",
+                            background: theme.palette.mode === 'dark' 
+                                ? "rgba(0,0,0,0.5)" 
+                                : "rgba(255,255,255,0.4)",
+                            border: theme.palette.mode === 'dark'
+                                ? "1px solid rgba(255,255,255,0.05)"
+                                : "1px solid rgba(255,255,255,0.3)",
                         }}
-                    >
-                        <LockIcon sx={{ fontSize: 30 }} />
-                        <Typography fontWeight={800} sx={{ letterSpacing: 1.2, fontSize: "0.75rem" }}>
-                            ARCHIVADO
-                        </Typography>
-                        <Button
-                            size="small"
-                            variant="contained"
-                            disabled={reopening}
-                            startIcon={
-                                reopening
-                                    ? <CircularProgress size={14} thickness={5} sx={{ color: "#111" }} />
-                                    : <UnarchiveIcon fontSize="small" />
-                            }
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onReopen();
-                            }}
-                            sx={{
-                                borderRadius: 5,
-                                textTransform: "none",
-                                fontWeight: 700,
-                                bgcolor: "#fff",
-                                color: "#111",
-                                "&:hover": { bgcolor: "#eee" },
-                                "&.Mui-disabled": {
-                                    bgcolor: "#eee",
-                                    color: "#111",
-                                    opacity: 0.8,
-                                },
-                            }}
-                        >
-                            {reopening ? "Reabriendo..." : "Reabrir"}
-                        </Button>
-                    </Box>
+                    />
                 )}
 
                 <CardContent
@@ -214,7 +183,7 @@ function SortableWorkspaceCard({
                         <Typography
                             fontWeight={800}
                             sx={{
-                                maxWidth: "60%",
+                                maxWidth: isArchived ? "50%" : "60%",
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
@@ -248,7 +217,22 @@ function SortableWorkspaceCard({
                                     <ArchiveIcon fontSize="inherit" />
                                 </IconButton>
                             </>
-                        ) : null}
+                        ) : (
+                            <IconButton
+                                size="small"
+                                disabled={reopening}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onReopen();
+                                }}
+                            >
+                                {reopening ? (
+                                    <CircularProgress size={16} thickness={5} sx={{ color: theme.palette.mode === 'dark' ? '#ebcf8d' : '#b57614' }} />
+                                ) : (
+                                    <UnarchiveIcon fontSize="inherit" />
+                                )}
+                            </IconButton>
+                        )}
                         <IconButton
                             size="small"
                             color="error"
@@ -296,6 +280,8 @@ export default function WorkspaceManager({
     const [uploading, setUploading] = useState(false);
     const [workspaceToDelete, setWorkspaceToDelete] = useState<Workspace | null>(null);
     const [workspaceToArchive, setWorkspaceToArchive] = useState<Workspace | null>(null);
+    const [workspaceToReopen, setWorkspaceToReopen] = useState<Workspace | null>(null);
+    const [workspaceToDeleteArchived, setWorkspaceToDeleteArchived] = useState<Workspace | null>(null);
 
     const [imgToDelete, setImgToDelete] = useState<GalleryImage | null>(null);
 
@@ -455,9 +441,18 @@ export default function WorkspaceManager({
         }
     };
 
-    const handleDeleteArchived = async (ws: Workspace) => {
-        await fetch(`/api/workspaces/${ws.id}`, { method: "DELETE" });
-        setArchivedWorkspaces(prev => prev.filter(w => w.id !== ws.id));
+    const confirmReopenWorkspace = async () => {
+        if (!workspaceToReopen) return;
+        const ws = workspaceToReopen;
+        setWorkspaceToReopen(null);
+        await handleReopen(ws);
+    };
+
+    const confirmDeleteArchivedWorkspace = async () => {
+        if (!workspaceToDeleteArchived) return;
+        await fetch(`/api/workspaces/${workspaceToDeleteArchived.id}`, { method: "DELETE" });
+        setArchivedWorkspaces(prev => prev.filter(w => w.id !== workspaceToDeleteArchived.id));
+        setWorkspaceToDeleteArchived(null);
     };
 
     return (
@@ -517,7 +512,7 @@ export default function WorkspaceManager({
                                             onEdit={() => setLocalEdit({ ...ws })}
                                             onDelete={() => setWorkspaceToDelete(ws)}
                                             onArchive={() => setWorkspaceToArchive(ws)}
-                                            onReopen={() => {}}
+                                            onReopen={() => { }}
                                         />
                                     ))}
 
@@ -583,11 +578,11 @@ export default function WorkspaceManager({
                                     ws={ws}
                                     draggable={false}
                                     reopening={reopeningId === ws.id}
-                                    onSelect={() => {}}
-                                    onEdit={() => {}}
-                                    onArchive={() => {}}
-                                    onDelete={() => handleDeleteArchived(ws)}
-                                    onReopen={() => handleReopen(ws)}
+                                    onSelect={() => { }}
+                                    onEdit={() => { }}
+                                    onArchive={() => { }}
+                                    onDelete={() => setWorkspaceToDeleteArchived(ws)}
+                                    onReopen={() => setWorkspaceToReopen(ws)}
                                 />
                             ))}
                         </Grid>
@@ -738,7 +733,7 @@ export default function WorkspaceManager({
 
             <ConfirmDialog
                 open={!!workspaceToDelete}
-                title={`¿Eliminar el workspace "${workspaceToDelete?.title}"?`}
+                title={`¿Eliminar el espacio "${workspaceToDelete?.title}"?`}
                 onConfirm={async () => {
                     if (!workspaceToDelete) return;
 
@@ -754,11 +749,26 @@ export default function WorkspaceManager({
             />
 
             <ConfirmDialog
+                open={!!workspaceToDeleteArchived}
+                title={`¿Eliminar el espacio "${workspaceToDeleteArchived?.title}"?`}
+                onConfirm={confirmDeleteArchivedWorkspace}
+                onClose={() => setWorkspaceToDeleteArchived(null)}
+            />
+
+            <ConfirmDialog
                 open={!!workspaceToArchive}
-                title={`¿Archivar el workspace "${workspaceToArchive?.title}"?`}
+                title={`¿Archivar el espacio "${workspaceToArchive?.title}"?`}
                 description="Podrás reabrirlo en cualquier momento desde la pestaña Archivados."
                 onConfirm={confirmArchiveWorkspace}
                 onClose={() => setWorkspaceToArchive(null)}
+            />
+
+            <ConfirmDialog
+                open={!!workspaceToReopen}
+                title={`¿Reabrir el espacio "${workspaceToReopen?.title}"?`}
+                description="Volverá a aparecer en tu listado de espacios activos."
+                onConfirm={confirmReopenWorkspace}
+                onClose={() => setWorkspaceToReopen(null)}
             />
 
             <ConfirmDialog
