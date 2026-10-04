@@ -14,7 +14,14 @@ interface ConfirmDialogProps {
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   open, title, description, onConfirm, onClose, loading
 }) => (
-  <Dialog open={open} onClose={onClose} sx={{ zIndex: 9999 }}>
+  <Dialog
+    open={open}
+    onClose={(_, reason) => {
+      if (reason === "backdropClick") return;
+      onClose();
+    }}
+    sx={{ zIndex: 9999 }}
+  >
     <DialogContent sx={{ textAlign: 'center', p: 4, maxWidth: 400 }}>
       <WarningAmberRoundedIcon sx={{ fontSize: 60, color: '#ed6c02', mb: 2 }} />
       <Typography variant="h6" fontWeight={700} gutterBottom>

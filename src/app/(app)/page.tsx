@@ -572,7 +572,15 @@ export default function KanbanPage() {
         </DndContext>
       )}
 
-      <Dialog open={!!editingTask} onClose={() => setEditingTask(null)} fullWidth maxWidth="sm">
+      <Dialog
+        open={!!editingTask}
+        onClose={(_, reason) => {
+          if (reason === "backdropClick") return;
+          setEditingTask(null);
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
         {editingTask && (
           <>
             <DialogTitle

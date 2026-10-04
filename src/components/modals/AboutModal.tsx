@@ -30,7 +30,10 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
   return (
     <Modal
       open={open}
-      onClose={handleClose}
+      onClose={(_, reason) => {
+        if (reason === "backdropClick") return;
+        handleClose();
+      }}
       closeAfterTransition
     >
       <Fade in={open}>

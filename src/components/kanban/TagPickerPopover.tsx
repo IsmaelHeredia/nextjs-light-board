@@ -7,6 +7,7 @@ import { Tag, Task } from "@/type";
 
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import LockIcon from '@mui/icons-material/Lock';
 import { getContrastColor } from "@/app/lib/colors";
@@ -65,6 +66,12 @@ function TagPickerPopover({
 
     const [editingTag, setEditingTag] = useState<Tag | null>(null);
 
+    const handleClose = () => {
+        onClose();
+        setView("list");
+        setEditingTag(null);
+    };
+
     const handleSaveTag = async () => {
         if (!tagName) return;
 
@@ -105,7 +112,10 @@ function TagPickerPopover({
         <Popover
             open={Boolean(anchorEl)}
             anchorEl={anchorEl}
-            onClose={() => { onClose(); setView("list"); }}
+            onClose={(_, reason) => {
+                if (reason === "backdropClick") return;
+                handleClose();
+            }}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
             PaperProps={{
                 sx: {
@@ -119,17 +129,32 @@ function TagPickerPopover({
         >
             {view === "list" ? (
                 <Stack spacing={1.5}>
-                    <Typography
-                        variant="subtitle2"
-                        textAlign="center"
-                        fontWeight={700}
-                        color="textSecondary"
-                        sx={{
-                            fontSize: "1.4rem"
-                        }}
+                    <Stack
+                        direction="row"
+                        alignItems="center"
+                        justifyContent="center"
+                        sx={{ position: "relative" }}
                     >
-                        Etiquetas
-                    </Typography>
+                        <Typography
+                            variant="subtitle2"
+                            textAlign="center"
+                            fontWeight={700}
+                            color="textSecondary"
+                            sx={{
+                                fontSize: "1.4rem"
+                            }}
+                        >
+                            Etiquetas
+                        </Typography>
+                        <IconButton
+                            size="small"
+                            onClick={handleClose}
+                            sx={{ position: "absolute", right: 0 }}
+                        >
+                            <CloseIcon fontSize="small" />
+                        </IconButton>
+                    </Stack>
+
                     <Box sx={{ maxHeight: 250, overflowY: 'auto', px: 0.5 }}>
                         {allBoardTags.map((tag: Tag, idx: number) => {
                             const usageCount = tagUsageCount(tag.id, tasks);
@@ -232,19 +257,21 @@ function TagPickerPopover({
             ) : (
                 <Stack spacing={2}>
                     <Stack direction="row" alignItems="center">
-                        <IconButton size="small" onClick={() => setView("list")}><ArrowBackIosNewIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" onClick={() => setView("list")}>
+                            <ArrowBackIosNewIcon fontSize="small" />
+                        </IconButton>
                         <Typography
                             variant="subtitle2"
                             sx={{
                                 flexGrow: 1,
                                 textAlign: 'center',
                                 fontWeight: 700,
-                                fontSize: "1.5rem",
-                                mr: 1
+                                fontSize: "1.5rem"
                             }}
                         >
                             {editingTag ? "Editar etiqueta" : "Crear etiqueta"}
                         </Typography>
+                        <Box sx={{ width: 30, flexShrink: 0 }} />
                     </Stack>
 
                     <Box

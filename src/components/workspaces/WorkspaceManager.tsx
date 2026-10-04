@@ -156,8 +156,8 @@ function SortableWorkspaceCard({
                             right: 0,
                             height: 140,
                             backdropFilter: "blur(4px)",
-                            background: theme.palette.mode === 'dark' 
-                                ? "rgba(0,0,0,0.5)" 
+                            background: theme.palette.mode === 'dark'
+                                ? "rgba(0,0,0,0.5)"
                                 : "rgba(255,255,255,0.4)",
                             border: theme.palette.mode === 'dark'
                                 ? "1px solid rgba(255,255,255,0.05)"
@@ -457,7 +457,14 @@ export default function WorkspaceManager({
 
     return (
         <>
-            <Dialog fullScreen open={open} onClose={onClose}>
+            <Dialog
+                fullScreen
+                open={open}
+                onClose={(_, reason) => {
+                    if (reason === "backdropClick") return;
+                    onClose();
+                }}
+            >
                 <AppBar sx={{ position: "relative", boxShadow: "none", borderBottom: "1px solid #e0e0e0" }}>
                     <Toolbar sx={{ backgroundColor: theme.palette.customNavbar?.background }}>
                         <BusinessCenterIcon sx={{ mr: 2 }} />
@@ -589,7 +596,15 @@ export default function WorkspaceManager({
                     )}
                 </Box>
 
-                <Dialog open={!!localEdit} onClose={() => setLocalEdit(null)} maxWidth="sm" fullWidth>
+                <Dialog
+                    open={!!localEdit}
+                    onClose={(_, reason) => {
+                        if (reason === "backdropClick") return;
+                        setLocalEdit(null);
+                    }}
+                    maxWidth="sm"
+                    fullWidth
+                >
                     <DialogTitle
                         component="div"
                         sx={{
